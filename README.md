@@ -1,5 +1,6 @@
 # Recommendation-Engine
 
-## Collaborative filtering
+Recomendation Engine excercie made during my master
 
-Excercice made during my master on collabortive filtering (using R)
+* Non Personalized Recommendation
+* Collaborative Filtering Engine
