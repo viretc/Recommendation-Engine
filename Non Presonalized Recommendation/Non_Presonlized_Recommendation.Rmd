@@ -1,0 +1,349 @@
+# IE - Master in Business Analytics and Big Data
+Recommendation Systems
+
+Building a Non Personalized Recommendation Engine
+
+Author: Cedric Viret
+
+========================================================
+
+# Initialization
+
+Import libraries
+
+```{r}
+library(readr)
+library(dplyr)
+library(ggplot2)
+library(data.table)
+library(tidyr)
+library(tidyverse)
+```
+
+Load the critics dataset.
+
+```{r}
+data <- read_csv("critics.csv")
+
+```
+
+Data overview:
+
+```{r}
+glimpse(data)
+```
+
+ * Having a quick look at the data, it seems that there are a lot of NA value per movie. I assume that NA values mean one did not rated the movie or did not see it; thus, NA does not mean missing values.
+ * The data are in tansactional fromat and not tabular format; I might change (transpose) the format to answer some of the questions questions.
+ * Quick definition between tabular and transactional tables:[tabular vs transactional](https://www.ibm.com/support/knowledgecenter/en/SS6A3P_7.0.0/com.ibm.spss.dm.userguide.doc/dms_build_model_association_tabvstrans.htm)
+
+# 1) Top 5 Movies, by rating mean
+Calculate mean rating for each movie, ordered with the highest rating listed first, and plot the top 5.
+
+**Expected result**:
+3.600000, 'The Shawshank Redemption'
+3.266667, 'Star Wars IV - A New Hope'
+3.222222, 'Blade Runner'
+3.166667, 'Groundhog Day'
+3.062500, 'The Silence of the Lambs'
+
+```{r fig.width=7, fig.height=6}
+
+col_number = NCOL(data) ##Find the columns numbers: 21
+
+#Finding columns' mean:
+movie_mean = colMeans(subset(data,select=  c(2:col_number)), na.rm = T) 
+
+```
+
+I have the means of all the movies, I could just return the top5 to answer the questions. However, I perfer to have the infomation into a dataframe rather that a vector (easier to read).
+
+* Transforming a vector into a dataframe
+* Getting the top5 of the dataframe
+
+```{r}
+# transfrom the vector into a df
+df_movie_mean = data.table(as.data.frame(movie_mean), keep.rownames = T)
+
+# by defauft the the column name will rn: I will change it to 'movie_title'
+df_movie_mean = df_movie_mean %>% rename(movie_title = rn)
+
+# Gettting the top5 (using dplyr)
+top5 = df_movie_mean %>% select(movie_mean, movie_title) %>% arrange(desc(movie_mean)) %>%head(5)
+
+#print result
+print(top5)
+
+```
+
+Plotting the top5
+
+```{r}
+
+# pregraph transformation:
+top5$movie_title <- reorder(top5$movie_title, top5$movie_mean) ## the columns in ascending order
+
+#plot
+
+graph_top5 = ggplot(data = top5) + geom_col(aes(x = movie_title, y= movie_mean, fill =movie_title), show.legend = F) + labs(title = "Top 5 Movies") + theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+#print result:
+print(graph_top5)
+
+```
+
+Create a function that return the top 5:
+
+```{r}
+#return the top5:
+ftop5 = function(data,value_to_sort_on){
+  data = rename(data[, c(2,1)], movie_title = rn) ##rename the column rt and change the column order
+  data = head(data[order(-data[,1])], n = 5) ##descending top5 
+  }
+
+```
+
+
+# 2) Top 5 Movies, by rating distribution
+Calculate the percentage of ratings for each movie that are 4 stars or higher. Order with the highest percentage first, and plot the top 5 movies with more high ratings distribution.
+
+**Expected result**:
+0.7000000, 'The Shawshank Redemption'
+0.5333333, 'Star Wars IV - A New Hope'
+0.5000000, 'Gladiator'
+0.4444444, 'Blade Runner'
+0.4375000, 'The Silence of the Lambs'
+
+
+Finding all ratios
+```{r fig.width=7, fig.height=6}
+
+ratio = sapply(data[2:col_number] , function(x){ sum(x == 4 | x == 5, na.rm = T) / length(x[!is.na(x)])}, simplify = T )
+df_ratio = data.table(as.data.frame(ratio), keep.rownames = T) #transform in a dataframe
+
+```
+
+Top5 ratios
+```{r}
+#calling ftop5 function:
+top5ratio = ftop5(df_ratio)
+
+#print top5ratio
+print(top5ratio)
+
+```
+
+plot visualization:
+
+```{r}
+
+# pregraph transformation:
+top5ratio$movie_title <- reorder(top5ratio$movie_title, top5ratio$ratio) ## the columns in ascending order
+#plot
+
+graph_top5ratio = ggplot(data = top5ratio) + geom_col(aes(x = movie_title, y= ratio, fill = movie_title),show.legend = F) + labs(title = "Top 5 Movies Ratio") + theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+#print result:
+print(graph_top5ratio)
+
+```
+
+
+# 3) Top 5 Movies, by quantity of ratings
+Count the number of ratings for each movie, order the one with most number of ratings first, submit the top 5.
+
+**Expected result**:
+17, 'Toy Story'
+16, 'The Silence of the Lambs'
+15, 'Star Wars IV - A New Hope'
+14, 'Star Wars VI - Return of the Jedi'
+13, 'Independence Day'
+
+first, let's found the number of time (count) that each movie appears
+```{r}
+count = sapply(data[2:col_number] , function(x){length(x[!is.na(x)])}, simplify = T )
+df_counting = data.table(as.data.frame(count), keep.rownames = T) #transform into a dataframe
+```
+
+Using the ftop5 function to find the top5
+```{r}
+#calling ftop5 function:
+top5count = ftop5(df_counting)
+
+#print top5ratio
+print(top5count)
+```
+
+plot visualization:
+```{r}
+# pregraph transformation:
+top5count$movie_title <- reorder(top5count$movie_title, top5count$count) ## the columns in ascending order
+
+#plot
+
+graph_top5count = ggplot(data = top5count) + geom_col(aes(x = movie_title, y= count, fill = movie_title), show.legend = F) + labs(title = "Top 5 Movies count") + theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+#print result:
+print(graph_top5count)
+```
+
+
+# 4) People who watched Star Wars IV also watched ...
+Calculate movies that most often occur with other movie. For each movie, calculate the percentage of the other movie raters who also rated that movie. Order with the highest percentage first, and submit the top 5. Select "Star.Wars.IV...A.New.Hope" movie by defaut. Use the (x+y)/x method.
+
+Top Occurences:
+0.9333333, 'Toy Story'
+0.8666667, 'Star Wars: Episode VI - Return of the Jedi'
+0.8000000, 'The Silence of the Lambs'
+0.7333333, 'Independence Day'
+0.6666667, 'Total Recall'
+
+Calculating all movies that most often occur with "Star.Wars.IV...A.New.Hope"
+```{r fig.width=7, fig.height=6}
+
+movie_na = data %>% filter(!is.na(`Star Wars IV - A New Hope`))
+new_data_movie = movie_na[3: col_number]
+chosen_movie = movie_na$`Star Wars IV - A New Hope`
+ratio = sapply(new_data_movie, function(x){length(x[!is.na(x)]) / length(chosen_movie)})
+
+final = data.table(as.data.frame(ratio), keep.rownames = T) #transform into a dataframe
+
+```
+
+Using the ftop5 function to find the top5 of the movies that often appear with "Star.Wars.IV...A.New.Hope"
+
+```{r}
+#calling ftop5 function:
+top5SW = ftop5(final)
+
+#print top5ratio
+print(top5SW)
+```
+
+
+
+
+# 5) People who liked Babe also liked ...
+Calculate the movies better rated of people who liked a movie. Select the people who liked the movie "Babe" (4 or 5 stars) and provide the top 5 movies they liked most.
+
+**Expected result**:
+5.000, 'Pulp.Fiction'
+5.000, 'Groundhog.Day'
+4.500, 'The.Shawshank.Redemption'
+4.333, 'Toy.Story'
+4.000, 'Blade.Runner'
+
+Finding the rating of all the movie, then people rated 'Babe' 4 or 5 stars
+```{r fig.width=7, fig.height=6}
+
+movie_babe = data %>% select(-User) %>% filter(Babe == 4 | Babe == 5)
+movie_babe_not = movie_babe %>%select(-Babe)
+stars = sapply(movie_babe_not, function(x){sum(x, na.rm = T) / length(x[!is.na(x)])})
+
+df_babe = data.table(as.data.frame(stars), keep.rownames = T)
+
+```
+
+Using the ftop5 function to find the top5 rating movies when people like 'Babe'
+```{r}
+#calling ftop5 function:
+top5BABE = ftop5(df_babe)
+
+#print top5ratio
+print(top5BABE)
+```
+
+# 6) MovieLens
+Explore a real data set and provide non-personalized ratings. You can use the MovieLens database. You can find MovieLens' dataset here: http://files.grouplens.org/datasets/movielens/ml-10m-README.html
+
+Importing file
+
+* I converted the dat file to csv format
+```{r}
+movies <- read_csv("movies.csv")
+ratings <- read_csv("ratings.csv")
+users <- read_csv("users.csv")
+
+```
+
+Giving the name to the 3 dataframes
+
+```{r}
+colnames(movies) = c('MovieID', 'Title', 'Genres')
+colnames(ratings) = c('UserID', 'MovieID', 'Tag', 'Timestamp')
+colnames(users) = c('UserID', 'Gender', 'Unkown1', 'Unkown2', 'Unkown3')
+
+```
+
+I did not change the Timestamp format form integer to Data because I will not use that column for the folling analysis - the same logic apply to UnkownX columns (No information availables)
+
+* Joining the 3 dataframes
+  + I could use merge function (standard R function), But I like to work with SQL, therefore I will import sqldf library
+  
+```{r}
+library(sqldf)
+```
+
+Joining table
+
+```{r}
+movielens = sqldf("Select * from movies
+                  JOIN ratings USING(MovieID)
+                  JOIN users USING(UserID)")
+head(movielens, n=2)
+```
+
+Remove unnecessary columns
+
+```{r}
+movielens = subset(movielens, select =-c(6,8:10))
+head(movielens, n=2)
+```
+
+#### Now that I have reshaped the dataframe, I will answer few questions:
+
+* Top 5 Movies, by rating mean and gender
+
+```{r}
+#top 5 for female
+movielens_top5 = movielens %>% filter(Gender == 'F') %>% group_by(Title) %>% summarise(avg_rating = mean(Tag)) %>% arrange(desc(avg_rating)) %>%head(., n=5)
+movielens_top5
+```
+
+```{r}
+#top 5 for male
+movielens_top5 = movielens %>% filter(Gender == 'M') %>% group_by(Title) %>% summarise(avg_rating = mean(Tag)) %>% arrange(desc(avg_rating)) %>%head(., n=5)
+movielens_top5
+```
+
+
+* Find the top5 ratio according to some movie Genres
+
+```{r}
+library(stringr)
+```
+
+```{r}
+fgenre = function(x){
+  movielens[str_detect(movielens[,3], x),] %>% group_by(Title) %>% summarise(ratio = sum(Tag) / length(Tag)) %>% arrange(desc(ratio))
+  }
+```
+
+```{r}
+#Fantasy
+head(fgenre('Fantasy'),5)
+```
+
+```{r}
+#Fantasy
+head(fgenre('Fantasy'),5)
+```
+
+```{r}
+#Adventure
+head(fgenre('Adventure'),5)
+
+```
+
+
+
